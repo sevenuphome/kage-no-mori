@@ -23,15 +23,16 @@ addEventListener('resize', fitCanvas);
 fitCanvas();
 
 /* ---------- input (NES pad) ---------- */
-export const pad = { left: false, right: false, up: false, down: false, a: false, b: false, start: false };
+export const pad = { left: false, right: false, up: false, down: false, a: false, b: false, j: false, start: false };
 const prev = { ...pad };
-export const pressed = { left: false, right: false, up: false, down: false, a: false, b: false, start: false };
+export const pressed = { left: false, right: false, up: false, down: false, a: false, b: false, j: false, start: false };
 
 const KEYMAP = {
   ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
   KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down',
-  KeyX: 'a', Space: 'a',            // A = sword
-  KeyZ: 'b', KeyK: 'b',             // B = shuriken
+  Space: 'j', KeyC: 'j',            // dedicated JUMP
+  KeyX: 'a',                        // sword
+  KeyZ: 'b', KeyK: 'b',             // shuriken
   Enter: 'start', Escape: 'start',
 };
 export const rawKeys = {};
@@ -62,7 +63,6 @@ export function latchInput() {           // call once per logic frame
    pad.up; holding a d-pad direction while tapping JUMP gives the
    diagonal leap. Overlay markup lives in index.html. */
 export let touchEnabled = false;
-let touchJump = null;
 export function initTouch(force = false) {
   if (!force && !(navigator.maxTouchPoints > 0 || 'ontouchstart' in window)) return false;
   const root = document.getElementById('touch');
@@ -73,13 +73,11 @@ export function initTouch(force = false) {
 
   const dpad = document.getElementById('dpad');
   const dirTouches = new Map();          // pointerId -> {l,r,u,d}
-  let jumpHeld = false;                  // JUMP button merges into pad.up
   const applyDirs = () => {
     let l = false, r = false, u = false, d = false;
     for (const v of dirTouches.values()) { l ||= v.l; r ||= v.r; u ||= v.u; d ||= v.d; }
-    pad.left = l; pad.right = r; pad.up = u || jumpHeld; pad.down = d;
+    pad.left = l; pad.right = r; pad.up = u; pad.down = d;
   };
-  touchJump = held => { jumpHeld = held; applyDirs(); };
   const zone = (e) => {
     const rc = dpad.getBoundingClientRect();
     const dx = e.clientX - (rc.left + rc.width / 2);
@@ -112,15 +110,7 @@ export function initTouch(force = false) {
   };
   bindBtn('btnA', 'a');
   bindBtn('btnB', 'b');
-  // JUMP: dedicated button, merged with the d-pad's Up
-  const bj = document.getElementById('btnJ');
-  bj.addEventListener('pointerdown', e => {
-    e.preventDefault();
-    try { bj.setPointerCapture(e.pointerId); } catch {}
-    touchJump(true); bj.classList.add('on');
-  });
-  for (const ev of ['pointerup', 'pointercancel'])
-    bj.addEventListener(ev, () => { touchJump(false); bj.classList.remove('on'); });
+  bindBtn('btnJ', 'j');
   const st = document.getElementById('btnStart');
   st.addEventListener('pointerdown', e => {
     e.preventDefault();

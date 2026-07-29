@@ -301,7 +301,7 @@ function updatePlayer() {
   if (P.state === 'climb') {
     const tr = P.trunk;
     P.x = tr.x - 5;
-    if (pad.up && (pad.left || pad.right)) { launchJump(pad.left ? -1 : 1); }
+    if (pressed.j) { launchJump(pad.left ? -1 : pad.right ? 1 : 0); }
     else if (pad.up) {
       P.y -= TU.climbSpeed;
       if (P.y + P.h < tr.top + 6) {                      // reached trunk top
@@ -345,7 +345,7 @@ function updatePlayer() {
   else if (P.state === 'water') {
     if (pad.left) { P.x -= TU.waterSpeed; P.face = -1; }
     if (pad.right) { P.x += TU.waterSpeed; P.face = 1; }
-    if (pressed.up) { P.vy = TU.jumpVel * 0.9; P.vx = pad.left ? -TU.jumpVX : pad.right ? TU.jumpVX : 0; P.state = 'air'; SFX.jump(); }
+    if (pressed.j) { P.vy = TU.jumpVel * 0.9; P.vx = pad.left ? -TU.jumpVX : pad.right ? TU.jumpVX : 0; P.state = 'air'; SFX.jump(); }
   }
   else if (P.state === 'ramp') {
     const r = P.ramp;
@@ -378,12 +378,11 @@ function updatePlayer() {
       else P.y = sup.y - P.h;
 
       const tr = trunkAt(P.x, P.y, P.h);
-      if (pressed.up) {
-        if (tr && !pad.left && !pad.right && P.y + P.h > tr.top + 10) {   // climb instead
-          P.state = 'climb'; P.trunk = tr; P.vx = 0;
-        } else {
-          launchJump(pad.left ? -1 : pad.right ? 1 : 0);
-        }
+      if (pressed.j) {
+        launchJump(pad.left ? -1 : pad.right ? 1 : 0);
+      }
+      else if (pressed.up && tr && P.y + P.h > tr.top + 10) {   // Up = climb at a trunk
+        P.state = 'climb'; P.trunk = tr; P.vx = 0;
       }
       else if (pad.down) {
         if (tr && P.y + P.h < tr.bot - 4) { P.state = 'climb'; P.trunk = tr; }
@@ -1240,7 +1239,7 @@ function drawTitle() {
   text('KAGE NO MORI', W / 2 - 47, 75, '#6c0700');
   text('SHADOW OF THE FOREST', W / 2 - 80, 92, '#f8d878');
   if ((G.frames >> 5) % 2) text(touchEnabled ? 'TAP TO START' : 'PUSH ENTER', W / 2 - 48, 130, '#fcfcfc');
-  if (!touchEnabled) text('↑ JUMP  X SWORD  Z STAR', W / 2 - 92, 152, '#aeaeae');
+  if (!touchEnabled) text('SPACE JUMP X SWORD Z STAR', W / 2 - 100, 152, '#aeaeae');
   text('AN ORIGINAL HOMAGE', W / 2 - 72, 212, '#666666');
   text('© 2026 SEVENUPHOME', W / 2 - 72, 224, '#666666');
 }

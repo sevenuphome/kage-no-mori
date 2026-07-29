@@ -11,14 +11,17 @@ An **original homage** inspired by the mechanics of Taito's *The Legend of Kage*
 | Key | Action |
 |-----|--------|
 | `←` `→` | Run (fast, instant turns — body contact is harmless, only weapons hurt you) |
-| `↑` | **Jump** — screen-tall and floaty. Hold `←`/`→` while pressing to leap diagonally. **The arc is committed: no steering in mid-air.** |
+| `SPACE` / `C` | **Jump** — screen-tall and floaty. Hold `←`/`→` while pressing to leap diagonally. **The arc is committed: no steering in mid-air.** |
+| `↑` | Climb a tree trunk or castle column · aim shuriken upward in the air |
 | `↓` | Crouch · climb down · drop from a platform |
-| `X` / `SPACE` | Sword — short range, deflects enemy stars (+50), clashes blades (+100, ×3 in a row +1500) |
+| `X` | Sword — short range, deflects enemy stars (+50), clashes blades (+100, ×3 in a row +1500) |
 | `Z` | Shuriken — max 2 on screen; while airborne the d-pad aims all 8 directions |
 | `ENTER` | Start / pause |
 | `M` | Sound on/off |
 
-**On phones and tablets** the game shows touch controls automatically: a virtual d-pad on the left (push up to jump, up-diagonals for diagonal leaps, down to crouch/climb/drop) and SWORD / STAR buttons on the right, plus a START button. Tap the screen to begin.
+(The 1985 original famously had no jump button — Up on the d-pad jumped. This homage moves jumping to a dedicated button for comfort; everything else about the jump, including the committed arc, is unchanged.)
+
+**On phones and tablets** touch controls appear automatically: d-pad on the left (▲ climbs, ▼ crouches/drops, and in the air the pad aims your stars), with **JUMP**, SWORD, and STAR buttons on the right. Hold a direction and tap JUMP for the diagonal leap. Tap the screen to begin.
 
 - **Climb trees and castle columns**: press `↑` at a trunk. Fall past a trunk with the d-pad neutral and you'll catch it.
 - **Crystal orbs** upgrade your outfit: red → **green** (large piercing stars) → **gold** (speed boost). A hit knocks you back a tier instead of killing you — but monk fire burns through everything.
