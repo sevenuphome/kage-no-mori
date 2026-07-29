@@ -4,7 +4,7 @@
    Mechanics recreated from research; all art, code and music
    are original. No Taito assets or names are used.
    ============================================================ */
-import { W, H, ctx, pad, pressed, rawKeys, sprite, blit, text, APU, runLoop, latchInput, rnd, irnd, clamp, pick } from './engine.js';
+import { W, H, ctx, cvs, pad, pressed, rawKeys, sprite, blit, text, APU, runLoop, latchInput, initTouch, pulse, rnd, irnd, clamp, pick } from './engine.js';
 import * as S from './sprites.js';
 import { Music, SFX } from './music.js';
 
@@ -242,12 +242,19 @@ function solidUnder(x, y0, y1) {     // top-surface landing test between y0→y1
   }
   return best;
 }
-function rampAt(x) {
+function rampAt(x, footY) {
+  let best = null, bestD = 10;               // ramps can share x-ranges (stacked floors)
   for (const r of world.ramps) {
     const lo = Math.min(r.x0, r.x1), hi = Math.max(r.x0, r.x1);
-    if (x + 5 >= lo && x + 5 <= hi) return r;
+    if (x + 5 < lo || x + 5 > hi) continue;
+    // never mount from the TOP end — walking off a climbed staircase must not
+    // catch the stair head and drag the player back down (descend by dropping)
+    const topX = r.y1 < r.y0 ? r.x1 : r.x0;
+    if (Math.abs(x + 5 - topX) < 14) continue;
+    const d = Math.abs(footY - rampY(r, x));
+    if (d < bestD) { bestD = d; best = r; }
   }
-  return null;
+  return best;
 }
 function rampY(r, x) {
   const t = clamp((x + 5 - r.x0) / (r.x1 - r.x0), 0, 1);
@@ -297,9 +304,10 @@ function updatePlayer() {
     if (pad.up && (pad.left || pad.right)) { launchJump(pad.left ? -1 : 1); }
     else if (pad.up) {
       P.y -= TU.climbSpeed;
-      if (P.y + P.h < tr.top + 6) {              // reached trunk top → hop up
-        const land = solidUnder(P.x, tr.top - 8, tr.top + 8);
-        launchJump(0, -3.4);
+      if (P.y + P.h < tr.top + 6) {                      // reached trunk top
+        const land = solidUnder(P.x, tr.top - 10, tr.top + 8);
+        if (land) { P.y = land.y - P.h; P.state = 'ground'; P.trunk = null; }  // mount the canopy
+        else launchJump(0, -3.4);
       }
     }
     else if (pad.down) {
@@ -320,17 +328,18 @@ function updatePlayer() {
     if (P.vy > 0) {
       // cling to trunk when falling with pad neutral
       const tr = trunkAt(P.x, P.y, P.h);
-      if (tr && !pad.left && !pad.right && !pad.down && P.y + P.h < tr.bot - 4) {
+      if (tr && !pad.left && !pad.right && !pad.down && !pad.up && P.y + P.h < tr.bot - 4) {
         P.state = 'climb'; P.trunk = tr; P.vx = P.vy = 0;
       } else {
+        // down in the air aims stars — it must never cancel a landing
         const hit = solidUnder(P.x, P.y + P.h - P.vy, P.y + P.h);
-        if (hit && !(pad.down && !hit.ground)) {
+        if (hit) {
           P.y = hit.y - P.h; P.vy = 0; P.vx = 0; P.state = 'ground';
           if (hit.s && hit.s.top) reachedWallTop();
         }
       }
     }
-    if (world.water && P.y + P.h > world.water.y + 6) { P.state = 'water'; P.vx = 0; P.vy = 0; SFX.splash(); P.y = world.water.y + 2; }
+    if (world.water && P.vy > 0 && P.y + P.h > world.water.y + 6) { P.state = 'water'; P.vx = 0; P.vy = 0; SFX.splash(); P.y = world.water.y + 2; }
     if (P.y > world.h + 20) { fireKillPlayer(); }           // safety net (shouldn't happen)
   }
   else if (P.state === 'water') {
@@ -359,8 +368,8 @@ function updatePlayer() {
     P.x += P.vx;
     // walked onto a ramp?
     if (world.ramps.length) {
-      const r = rampAt(P.x);
-      if (r && Math.abs((P.y + P.h) - rampY(r, P.x)) < 10) { P.state = 'ramp'; P.ramp = r; P.y = rampY(r, P.x) - P.h; }
+      const r = rampAt(P.x, P.y + P.h);
+      if (r) { P.state = 'ramp'; P.ramp = r; P.y = rampY(r, P.x) - P.h; }
     }
     if (P.state === 'ground') {
       // still supported?
@@ -387,8 +396,7 @@ function updatePlayer() {
   P.x = clamp(P.x, 0, world.w - 12);
 
   /* ---------- attacks ---------- */
-  const crouched = P.state === 'ground' && pad.down && !trunkAt(P.x, P.y, P.h);
-  if (pressed.a && P.state !== 'water' || (pressed.a && P.state === 'water')) {  // sword always available
+  if (pressed.a) {                     // sword always available, even in water
     P.swordT = 12; SFX.sword();
     swordStrike();
   }
@@ -444,11 +452,31 @@ function respawn() {
   P.vx = P.vy = 0; P.state = 'air'; P.vy = 0.5;
   // fall back in from above current position
   P.x = clamp(P.x, 16, world.w - 24);
+  if (world.kind === 'moat') {                 // snap onto the nearest bank ledge
+    let best = world.solids[0], bd = 1e9;
+    for (const s of world.solids) {
+      const d = Math.abs(s.x + s.w / 2 - P.x);
+      if (d < bd) { bd = d; best = s; }
+    }
+    P.x = clamp(best.x + best.w / 2, 16, world.w - 24);
+  }
   P.y = Math.max(world.ceiling ?? 16, G.camY + 8);
   if (world.kind === 'wall') P.y = G.camY + 8;
   Music.play('stage');
 }
 function reachedWallTop() { if (world.kind === 'wall') stageClear(); }
+
+function clashBlades(e) {              // sword-on-sword: bounce + points, streak per foe
+  e.swingT = 0;
+  if (G.frames - (e.clashF || 0) > 240) e.clashN = 0;    // streak breaks after ~4s
+  e.clashF = G.frames;
+  e.clashN = (e.clashN || 0) + 1;
+  P.clashBounce = -P.face * 2.4;
+  e.x += Math.sign(e.x - P.x) * 6;
+  SFX.clash();
+  addScore(e.clashN >= 3 ? 1500 : 100, e.x, e.y - 8);
+  if (e.clashN >= 3) e.clashN = 0;
+}
 
 function swordStrike() {
   const sx = P.x + 5 + P.face * 12, sy = P.y + 10;
@@ -461,16 +489,8 @@ function swordStrike() {
       }
     } else if (e.t === 'ninja' || e.t === 'monk' || e.t === 'boss') {
       if (Math.abs((e.x + e.w / 2) - sx) < TU.swordRange && Math.abs((e.y + e.h / 2) - sy) < TU.swordArc) {
-        if (e.t === 'ninja' && e.swingT > 4) {          // blade clash!
-          e.swingT = 0; e.clashN = (e.clashN || 0) + 1;
-          P.clashBounce = -P.face * 2.4;
-          e.x += Math.sign(e.x - P.x) * 6;
-          SFX.clash();
-          addScore(e.clashN >= 3 ? 1500 : 100, e.x, e.y - 8);
-          if (e.clashN >= 3) e.clashN = 0;
-        } else {
-          slayEnemy(e, 'sword');
-        }
+        if (e.t === 'ninja' && e.swingT > 4) clashBlades(e);
+        else slayEnemy(e, 'sword');
       }
     } else if (e.t === 'fly' && !e.down) {
       if (Math.abs(e.x - sx) < 14 && Math.abs(e.y - sy) < 14) hitButterfly(e);
@@ -494,6 +514,7 @@ function slayEnemy(e, weapon) {
   ents.push({ t: 'corpse', kind: e.t, pal: e.pal || (e.kind === 'twin' ? 'white' : 'teal'),
               x: e.x, y: e.y, vy: -1.6, face: e.face, age: 0 });
   SFX.enemyDie();
+  for (const f of ents) if (f.t === 'fire' && f.owner === e) f.dead = true;   // erase owned fire
   const key = e.t === 'boss' ? 'boss_' + e.kind : e.t + '_' + e.pal;
   const pts = (KILL_PTS[key] || [100, 100])[weapon === 'sword' ? 0 : 1];
   addScore(pts, e.x + 2, e.y - 4);
@@ -534,8 +555,7 @@ function hitButterfly(e) {
   if (e.hitT > 0) return;
   e.hp--; e.hitT = 30;
   SFX.flyHit();
-  addScore(500, e.x, e.y - 8);
-  if (e.hp <= 0) { e.down = true; e.vy = 0; }
+  if (e.hp <= 0) { e.down = true; e.vy = 0; e.hitT = 0; }   // stay visible while it falls
 }
 
 function spawnEnemies() {
@@ -577,16 +597,17 @@ function spawnEnemies() {
   if (world.kind === 'moat' && e.y > 100) { e.inWater = true; e.vy = 0; }
   if (world.kind === 'keep') { e.y = world.floors[irnd(0, 3)] - 24; e.ground = true; }
   ents.push(e);
-  // keep top floor: endless red monks
-  if (world.kind === 'keep' && Math.random() < 0.3)
-    ents.push(monk('red', pick([80, 560]), world.floors[3] - 24, { zone: [0, world.w] }));
+  // keep top floor: endless red monks (bounded population)
+  if (world.kind === 'keep' && Math.random() < 0.3 &&
+      ents.filter(m => m.t === 'monk' && !m.dead).length < 3)
+    ents.push(monk('red', pick([80, 560]), world.floors[3] - 24, { zone: [40, world.w - 40] }));
 }
 
 function updateNinja(e) {
   e.anim++;
   if (e.swingT > 0) e.swingT--;
-  if (e.still) {                       // black ninja waits
-    if (Math.abs(P.x - e.x) < 60) e.still = false;
+  if (e.still) {                       // black ninja waits at his post
+    if (Math.hypot(P.x - e.x, P.y - e.y) < 70) e.still = false;
     return;
   }
   if (e.inWater) {                     // lurker: pop out when player near
@@ -611,8 +632,11 @@ function updateNinja(e) {
     if (Math.abs(dx) < 20 && Math.abs(dy) < 20 && e.swingT === 0 && Math.random() < 0.05) {
       e.swingT = 14; e.face = Math.sign(dx || 1);
     }
-    if (e.swingT === 7) {              // active frames — cut the player
-      if (Math.abs(dx) < 18 && Math.abs(dy) < 18 && !(P.swordT > 0)) killPlayer();
+    if (e.swingT === 7) {              // active frames — cut the player, or clash blades
+      if (Math.abs(dx) < 18 && Math.abs(dy) < 18) {
+        if (P.swordT > 0) clashBlades(e);
+        else killPlayer();
+      }
     }
   }
   if (e.vx !== 0) e.face = Math.sign(e.vx);
@@ -637,16 +661,19 @@ function updateNinja(e) {
     }
   }
   enemyPhysics(e);
-  if (e.x < G.camX - 40 || e.x > G.camX + W + 40 || e.y > G.camY + H + 60) e.dead = true;  // offscreen despawn
+  if (e.pal !== 'black' &&                                 // the scroll carrier never despawns
+      (e.x < G.camX - 40 || e.x > G.camX + W + 40 || e.y > G.camY + H + 60)) e.dead = true;
 }
 
 function updateMonk(e) {
   e.anim++;
   if (e.breatheT > 0) e.breatheT--;
   e.face = Math.sign(P.x - e.x) || -1;
-  // slow patrol inside zone
+  // slow patrol inside zone (bounds inclusive — enemyPhysics clamps to the world)
   e.x += e.vx * 0.5;
-  if (e.zone && (e.x < e.zone[0] || e.x > e.zone[1])) e.vx *= -1;
+  if (e.zone && (e.x <= Math.max(e.zone[0], 2) || e.x >= Math.min(e.zone[1], world.w - 14))) {
+    e.vx = -e.vx; e.x += e.vx;
+  }
   e.fireCd--;
   if (e.fireCd <= 0 && Math.abs(P.y - e.y) < 40 && Math.abs(P.x - e.x) < 220) {
     e.fireCd = irnd(110, 180) - G.season * 15;
@@ -663,9 +690,8 @@ function updateBoss(e) {
   e.anim++; e.think--;
   const dx = P.x - e.x, dy = P.y - e.y;
   e.face = Math.sign(dx) || -1;
-  if (e.kind === 'twin') {             // aggressive white monks
+  if (e.kind === 'twin') {             // aggressive white monks (enemyPhysics applies vx)
     if (e.think <= 0) { e.think = irnd(30, 70); e.vx = Math.sign(dx) * rnd(0.4, 0.9); }
-    e.x += e.vx;
     e.fireCd = (e.fireCd || 60) - 1;
     if (e.fireCd <= 0 && Math.abs(dy) < 50) {
       e.fireCd = irnd(80, 130);
@@ -685,16 +711,24 @@ function updateBoss(e) {
       else e.vx = 0;
     }
     if (Math.abs(dx) < 20 && Math.abs(dy) < 20 && e.swingT <= 0 && Math.random() < 0.09) e.swingT = 12;
-    if (e.swingT > 0) { e.swingT--; if (e.swingT === 6 && Math.abs(dx) < 20 && Math.abs(dy) < 18 && !(P.swordT > 0)) killPlayer(); }
+    if (e.swingT > 0) {
+      e.swingT--;
+      if (e.swingT === 6 && Math.abs(dx) < 20 && Math.abs(dy) < 18) {
+        if (P.swordT > 0) clashBlades(e);
+        else killPlayer();
+      }
+    }
     enemyPhysics(e);
   }
   else {                               // warlord: swooping flyer
     e.flyA += 0.03;
-    if (e.dashT > 0) {                 // diving slash
+    if (e.dashT > 0) {                 // diving slash — blades out only mid-dive
       e.dashT--;
-      e.x += e.vx; e.y += e.vy;
+      e.x = clamp(e.x + e.vx, 4, world.w - e.w - 4);
+      e.y = Math.max(e.y + e.vy, 16);
       if (e.y + e.h >= world.groundY) { e.y = world.groundY - e.h; e.dashT = 0; }
-      if (Math.abs(P.x - e.x) < 14 && Math.abs(P.y - e.y) < 16 && !(P.swordT > 0)) killPlayer();
+      const slashing = e.dashT > 8 && e.dashT < 34;
+      if (slashing && Math.abs(P.x - e.x) < 14 && Math.abs(P.y - e.y) < 16 && !(P.swordT > 0)) killPlayer();
     } else {
       e.x = 128 + Math.cos(e.flyA) * 92;
       e.y = 70 + Math.sin(e.flyA * 2.1) * 34;
@@ -740,7 +774,11 @@ function updateEnts() {
       case 'monk': updateMonk(e); break;
       case 'boss': updateBoss(e); break;
       case 'fly': {
-        if (e.down) { e.y = Math.min(e.y + 1.2, world.groundY - 6); if (!G.butterflyDown && e.y >= world.groundY - 6) { G.butterflyDown = true; addScore(1000, e.x, e.y - 8); } break; }
+        if (e.down) {
+          e.y = Math.min(e.y + 1.2, world.groundY - 6);
+          if (!G.butterflyDown && e.y >= world.groundY - 6) { G.butterflyDown = true; addScore(500, e.x, e.y - 8); }
+          break;
+        }
         if (e.hitT > 0) e.hitT--;
         e.a += 0.04;
         e.x = 128 + Math.cos(e.a) * 84;
@@ -812,7 +850,7 @@ function updateEnts() {
         if (hitPlayerBox(e.x, e.y, 12, 12)) {
           e.dead = true; SFX.faceGet();
           if (e.kind === 'gray') addScore(10000, e.x, e.y);
-          else if (e.kind === 'red') { G.ashuraT = TU.ashuraFrames; addScore(1000, e.x, e.y); }
+          else if (e.kind === 'red') { G.ashuraT = TU.ashuraFrames; ents.push(pop(e.x, e.y, 'ASHURA')); }
           else { G.lives++; SFX.oneUp(); ents.push(pop(e.x, e.y, '1UP')); }
         }
         break;
@@ -844,7 +882,6 @@ function startGame() {
   buildStage(); setMode('story');
 }
 function stageClear() {
-  addScore(1000);
   G.stage++;
   buildStage();
   setMode('story');
@@ -1285,9 +1322,15 @@ function draw() {
    ============================================================ */
 addEventListener('pointerdown', () => { APU.init(); Music.onAudioReady(); });
 addEventListener('keydown', () => { APU.init(); Music.onAudioReady(); });
+initTouch();
+// tapping the screen itself acts as START on menu-type screens (never mid-play)
+cvs.addEventListener('pointerdown', () => {
+  if (['title', 'gameover', 'story', 'ending'].includes(G.mode)) pulse('start');
+});
 window.__game = {
   G, P, TU, pad, get world() { return world; }, get ents() { return ents; },
   setMode, startGame, buildStage,
+  forceTouch: () => initTouch(true),
   // synchronous test pump: run n logic frames + one draw, independent of rAF
   step(n = 1) { for (let i = 0; i < n; i++) { latchInput(); update(); } draw(); },
 };

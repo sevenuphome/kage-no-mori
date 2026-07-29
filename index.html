@@ -2,22 +2,59 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>KAGE NO MORI — ninja action</title>
 <link rel="icon" href="data:,">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{height:100%;background:#000;overflow:hidden}
+  html,body{height:100%;background:#000;overflow:hidden;touch-action:none}
   body{display:flex;align-items:center;justify-content:center;
-       font-family:monospace;color:#888;user-select:none;-webkit-user-select:none}
+       font-family:monospace;color:#888;user-select:none;-webkit-user-select:none;
+       -webkit-touch-callout:none}
   #screen{image-rendering:pixelated;image-rendering:crisp-edges;background:#000}
   #note{position:fixed;bottom:8px;left:0;right:0;text-align:center;
         font-size:11px;letter-spacing:.15em;color:#555}
+
+  /* ---------- touch controls (shown only on touch devices) ---------- */
+  #touch{display:none;position:fixed;inset:0;pointer-events:none;z-index:10}
+  #touch > *{pointer-events:auto;touch-action:none}
+  #dpad{position:absolute;left:14px;bottom:max(14px, env(safe-area-inset-bottom));
+        width:148px;height:148px;border-radius:50%;
+        border:2px solid rgba(255,255,255,.25);
+        background:radial-gradient(circle,rgba(255,255,255,.06) 55%,rgba(255,255,255,.12));
+        opacity:.85}
+  #dpad::before{content:'';position:absolute;left:50%;top:50%;width:46px;height:46px;
+        transform:translate(-50%,-50%);border-radius:50%;
+        background:rgba(255,255,255,.15)}
+  #dpad .cue{position:absolute;font-size:14px;color:rgba(255,255,255,.55);
+        left:50%;top:50%;transform:translate(-50%,-50%)}
+  #dpad .cue.u{margin-top:-58px} #dpad .cue.d{margin-top:58px}
+  #dpad .cue.l{margin-left:-58px} #dpad .cue.r{margin-left:58px}
+  .tbtn{position:absolute;width:66px;height:66px;border-radius:50%;
+        border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;
+        justify-content:center;font-size:11px;letter-spacing:.1em;
+        color:rgba(255,255,255,.8);background:rgba(255,255,255,.08);opacity:.85}
+  .tbtn.on{background:rgba(255,255,255,.28)}
+  #btnA{right:16px;bottom:calc(66px + env(safe-area-inset-bottom))}
+  #btnA{border-color:rgba(248,56,0,.6);color:#ffb0a0}
+  #btnB{right:96px;bottom:max(18px, env(safe-area-inset-bottom));
+        border-color:rgba(60,188,252,.6);color:#a8dcff}
+  #btnStart{right:16px;top:14px;width:auto;height:30px;border-radius:15px;
+        padding:0 14px;font-size:10px}
 </style>
 </head>
 <body>
 <canvas id="screen"></canvas>
 <div id="note">ARROWS MOVE · ↑ JUMP (↖/↗ DIAGONAL) · X/SPACE SWORD · Z SHURIKEN · ENTER START/PAUSE · M SOUND</div>
+<div id="touch">
+  <div id="dpad">
+    <span class="cue u">▲</span><span class="cue d">▼</span>
+    <span class="cue l">◀</span><span class="cue r">▶</span>
+  </div>
+  <div class="tbtn" id="btnA">SWORD</div>
+  <div class="tbtn" id="btnB">STAR</div>
+  <div class="tbtn" id="btnStart">START</div>
+</div>
 <script type="module" src="./game.js"></script>
 </body>
 </html>

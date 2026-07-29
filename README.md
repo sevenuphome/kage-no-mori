@@ -18,6 +18,8 @@ An **original homage** inspired by the mechanics of Taito's *The Legend of Kage*
 | `ENTER` | Start / pause |
 | `M` | Sound on/off |
 
+**On phones and tablets** the game shows touch controls automatically: a virtual d-pad on the left (push up to jump, up-diagonals for diagonal leaps, down to crouch/climb/drop) and SWORD / STAR buttons on the right, plus a START button. Tap the screen to begin.
+
 - **Climb trees and castle columns**: press `↑` at a trunk. Fall past a trunk with the d-pad neutral and you'll catch it.
 - **Crystal orbs** upgrade your outfit: red → **green** (large piercing stars) → **gold** (speed boost). A hit knocks you back a tier instead of killing you — but monk fire burns through everything.
 - **Scrolls** freeze you in a chant that strikes down every nearby enemy.

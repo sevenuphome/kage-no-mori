@@ -114,6 +114,12 @@ export const Music = {
   tick() {
     if (!this.playing || !APU.ctx) return;
     const t = this.track, spb = 60 / t.bpm / 2;
+    // resync after tab throttling so we never burst-schedule missed steps
+    if (this.nextT < APU.ctx.currentTime - 0.1) {
+      const missed = Math.floor((APU.ctx.currentTime - this.nextT) / spb) + 1;
+      this.step += missed;
+      this.nextT = APU.ctx.currentTime + 0.05;
+    }
     while (this.nextT < APU.ctx.currentTime + 0.2) {
       if (!t.loop && this.step >= t.lead.length) { this.playing = false; return; }
       const i = this.step % t.lead.length, T = this.nextT;

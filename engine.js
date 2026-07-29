@@ -13,9 +13,11 @@ export const ctx = cvs.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
 export function fitCanvas() {
-  const scale = Math.max(1, Math.floor(Math.min(innerWidth / W, innerHeight / H)));
-  cvs.style.width = W * scale + 'px';
-  cvs.style.height = H * scale + 'px';
+  const raw = Math.min(innerWidth / W, innerHeight / H);
+  // desktop: crisp integer scaling; small screens: fill with fractional scale
+  const scale = raw >= 2 ? Math.floor(raw) : Math.max(0.8, raw);
+  cvs.style.width = Math.round(W * scale) + 'px';
+  cvs.style.height = Math.round(H * scale) + 'px';
 }
 addEventListener('resize', fitCanvas);
 fitCanvas();
@@ -42,9 +44,82 @@ addEventListener('keyup', e => {
   rawKeys[e.code] = false;
   if (KEYMAP[e.code]) pad[KEYMAP[e.code]] = false;
 });
+// keys held across focus loss would stay latched forever — release everything
+function releaseAll() {
+  for (const k in pad) pad[k] = false;
+  for (const k in rawKeys) rawKeys[k] = false;
+}
+addEventListener('blur', releaseAll);
+document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
 
 export function latchInput() {           // call once per logic frame
   for (const k in pad) { pressed[k] = pad[k] && !prev[k]; prev[k] = pad[k]; }
+}
+
+/* ---------- touch controls ----------
+   Virtual 8-way d-pad (threshold zones, so Up+Left/Right diagonal
+   jumps work) plus SWORD / STAR / START buttons. Enabled on touch
+   devices; the overlay is defined in index.html. */
+export function initTouch(force = false) {
+  if (!force && !(navigator.maxTouchPoints > 0 || 'ontouchstart' in window)) return false;
+  const root = document.getElementById('touch');
+  if (!root) return false;
+  root.style.display = 'block';
+  const note = document.getElementById('note');
+  if (note) note.style.display = 'none';
+
+  const dpad = document.getElementById('dpad');
+  const dirTouches = new Map();          // pointerId -> {l,r,u,d}
+  const applyDirs = () => {
+    let l = false, r = false, u = false, d = false;
+    for (const v of dirTouches.values()) { l ||= v.l; r ||= v.r; u ||= v.u; d ||= v.d; }
+    pad.left = l; pad.right = r; pad.up = u; pad.down = d;
+  };
+  const zone = (e) => {
+    const rc = dpad.getBoundingClientRect();
+    const dx = e.clientX - (rc.left + rc.width / 2);
+    const dy = e.clientY - (rc.top + rc.height / 2);
+    const t = rc.width * 0.14;
+    return { l: dx < -t, r: dx > t, u: dy < -t, d: dy > t };
+  };
+  dpad.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    try { dpad.setPointerCapture(e.pointerId); } catch {}
+    dirTouches.set(e.pointerId, zone(e)); applyDirs();
+  });
+  dpad.addEventListener('pointermove', e => {
+    if (!dirTouches.has(e.pointerId)) return;
+    dirTouches.set(e.pointerId, zone(e)); applyDirs();
+  });
+  for (const ev of ['pointerup', 'pointercancel']) {
+    dpad.addEventListener(ev, e => { dirTouches.delete(e.pointerId); applyDirs(); });
+  }
+
+  const bindBtn = (id, key) => {
+    const el = document.getElementById(id);
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      try { el.setPointerCapture(e.pointerId); } catch {}
+      pad[key] = true; el.classList.add('on');
+    });
+    for (const ev of ['pointerup', 'pointercancel'])
+      el.addEventListener(ev, () => { pad[key] = false; el.classList.remove('on'); });
+  };
+  bindBtn('btnA', 'a');
+  bindBtn('btnB', 'b');
+  const st = document.getElementById('btnStart');
+  st.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    pad.start = true; st.classList.add('on');
+    setTimeout(() => { pad.start = false; st.classList.remove('on'); }, 120);
+  });
+  return true;
+}
+
+/* brief virtual button pulse (e.g. tap-canvas-to-start) */
+export function pulse(key, ms = 120) {
+  pad[key] = true;
+  setTimeout(() => { pad[key] = false; }, ms);
 }
 
 /* ---------- sprite system ----------
@@ -155,7 +230,11 @@ export const APU = {
     c.g.gain.setValueAtTime(vol * 0.6, t + dur * 0.7);
     c.g.gain.setValueAtTime(0, t + dur * 0.92);
   },
-  rest(chan, t) { const c = this.ch[chan]; if (c) c.g.gain.setValueAtTime(0, t); },
+  rest(chan, t) {
+    const c = this.ch[chan]; if (!c) return;
+    c.g.gain.cancelScheduledValues(t); c.o.frequency.cancelScheduledValues(t);
+    c.g.gain.setValueAtTime(0, t);
+  },
   noiseBuf: null,
   noise(t, dur, vol = 0.2, hp = 4000) {          // percussion / sfx noise burst
     const ac = this.ctx; if (!ac) return;
