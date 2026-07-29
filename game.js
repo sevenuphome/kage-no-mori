@@ -4,7 +4,7 @@
    Mechanics recreated from research; all art, code and music
    are original. No Taito assets or names are used.
    ============================================================ */
-import { W, H, ctx, cvs, pad, pressed, rawKeys, sprite, blit, text, APU, runLoop, latchInput, initTouch, pulse, rnd, irnd, clamp, pick } from './engine.js';
+import { W, H, ctx, cvs, pad, pressed, rawKeys, sprite, blit, text, APU, runLoop, latchInput, initTouch, touchEnabled, pulse, rnd, irnd, clamp, pick } from './engine.js';
 import * as S from './sprites.js';
 import { Music, SFX } from './music.js';
 
@@ -1239,8 +1239,8 @@ function drawTitle() {
   text('KAGE NO MORI', W / 2 - 48, 74, '#f83800');
   text('KAGE NO MORI', W / 2 - 47, 75, '#6c0700');
   text('SHADOW OF THE FOREST', W / 2 - 80, 92, '#f8d878');
-  if ((G.frames >> 5) % 2) text('PUSH ENTER', W / 2 - 40, 130, '#fcfcfc');
-  text('↑ JUMP  X SWORD  Z STAR', W / 2 - 92, 152, '#aeaeae');
+  if ((G.frames >> 5) % 2) text(touchEnabled ? 'TAP TO START' : 'PUSH ENTER', W / 2 - 48, 130, '#fcfcfc');
+  if (!touchEnabled) text('↑ JUMP  X SWORD  Z STAR', W / 2 - 92, 152, '#aeaeae');
   text('AN ORIGINAL HOMAGE', W / 2 - 72, 212, '#666666');
   text('© 2026 SEVENUPHOME', W / 2 - 72, 224, '#666666');
 }

@@ -18,29 +18,49 @@
   /* ---------- touch controls (shown only on touch devices) ---------- */
   #touch{display:none;position:fixed;inset:0;pointer-events:none;z-index:10}
   #touch > *{pointer-events:auto;touch-action:none}
-  #dpad{position:absolute;left:14px;bottom:max(14px, env(safe-area-inset-bottom));
-        width:148px;height:148px;border-radius:50%;
-        border:2px solid rgba(255,255,255,.25);
-        background:radial-gradient(circle,rgba(255,255,255,.06) 55%,rgba(255,255,255,.12));
-        opacity:.85}
-  #dpad::before{content:'';position:absolute;left:50%;top:50%;width:46px;height:46px;
+
+  /* NES-style cross d-pad; the whole square is the touch zone */
+  #dpad{position:absolute;left:16px;bottom:max(18px, env(safe-area-inset-bottom));
+        width:160px;height:160px;opacity:.9}
+  #dpad .arm{position:absolute;background:linear-gradient(180deg,#3a3a46,#23232c);
+        border:2px solid rgba(255,255,255,.28);border-radius:10px;
+        box-shadow:0 3px 8px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.15)}
+  #dpad .arm.v{left:50%;top:4px;bottom:4px;width:52px;transform:translateX(-50%)}
+  #dpad .arm.h{top:50%;left:4px;right:4px;height:52px;transform:translateY(-50%);
+        background:linear-gradient(90deg,#3a3a46,#2b2b35,#3a3a46)}
+  #dpad .dot{position:absolute;left:50%;top:50%;width:34px;height:34px;
         transform:translate(-50%,-50%);border-radius:50%;
-        background:rgba(255,255,255,.15)}
-  #dpad .cue{position:absolute;font-size:14px;color:rgba(255,255,255,.55);
-        left:50%;top:50%;transform:translate(-50%,-50%)}
-  #dpad .cue.u{margin-top:-58px} #dpad .cue.d{margin-top:58px}
-  #dpad .cue.l{margin-left:-58px} #dpad .cue.r{margin-left:58px}
-  .tbtn{position:absolute;width:66px;height:66px;border-radius:50%;
-        border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;
-        justify-content:center;font-size:11px;letter-spacing:.1em;
-        color:rgba(255,255,255,.8);background:rgba(255,255,255,.08);opacity:.85}
-  .tbtn.on{background:rgba(255,255,255,.28)}
-  #btnA{right:16px;bottom:calc(66px + env(safe-area-inset-bottom))}
-  #btnA{border-color:rgba(248,56,0,.6);color:#ffb0a0}
-  #btnB{right:96px;bottom:max(18px, env(safe-area-inset-bottom));
-        border-color:rgba(60,188,252,.6);color:#a8dcff}
+        background:radial-gradient(circle at 40% 35%,#4a4a58,#1c1c24);
+        box-shadow:inset 0 2px 5px rgba(0,0,0,.7)}
+  #dpad .cue{position:absolute;left:50%;top:50%;width:0;height:0;
+        border:8px solid transparent;transform:translate(-50%,-50%)}
+  #dpad .cue.u{margin-top:-56px;border-bottom-color:rgba(255,255,255,.6);border-top-width:0}
+  #dpad .cue.d{margin-top:56px;border-top-color:rgba(255,255,255,.6);border-bottom-width:0}
+  #dpad .cue.l{margin-left:-56px;border-right-color:rgba(255,255,255,.6);border-left-width:0}
+  #dpad .cue.r{margin-left:56px;border-left-color:rgba(255,255,255,.6);border-right-width:0}
+
+  /* action buttons: JUMP big at thumb, SWORD above, STAR inside */
+  .tbtn{position:absolute;border-radius:50%;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;gap:1px;opacity:.92;
+        background:radial-gradient(circle at 38% 30%, #2c2c38, #17171f);
+        box-shadow:0 4px 10px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.18);
+        border:3px solid}
+  .tbtn svg{display:block}
+  .tbtn span{font-family:monospace;font-size:8px;letter-spacing:.15em}
+  .tbtn.on{filter:brightness(1.7)}
+  #btnJ{width:82px;height:82px;right:16px;
+        bottom:max(22px, env(safe-area-inset-bottom));
+        border-color:#c23000;color:#ffb0a0;
+        box-shadow:0 4px 12px rgba(248,56,0,.35), inset 0 1px 0 rgba(255,255,255,.18)}
+  #btnJ.on{box-shadow:0 0 18px rgba(248,56,0,.8)}
+  #btnA{width:64px;height:64px;right:26px;bottom:calc(118px + env(safe-area-inset-bottom));
+        border-color:#8a8a96;color:#e4e4e4}
+  #btnB{width:64px;height:64px;right:108px;
+        bottom:max(40px, env(safe-area-inset-bottom));
+        border-color:#1c7ab8;color:#a8dcff}
   #btnStart{right:16px;top:14px;width:auto;height:30px;border-radius:15px;
-        padding:0 14px;font-size:10px}
+        padding:0 14px;font-size:10px;flex-direction:row;color:#ccc;
+        border-color:rgba(255,255,255,.35)}
 </style>
 </head>
 <body>
@@ -48,11 +68,33 @@
 <div id="note">ARROWS MOVE · ↑ JUMP (↖/↗ DIAGONAL) · X/SPACE SWORD · Z SHURIKEN · ENTER START/PAUSE · M SOUND</div>
 <div id="touch">
   <div id="dpad">
-    <span class="cue u">▲</span><span class="cue d">▼</span>
-    <span class="cue l">◀</span><span class="cue r">▶</span>
+    <div class="arm v"></div><div class="arm h"></div><div class="dot"></div>
+    <span class="cue u"></span><span class="cue d"></span>
+    <span class="cue l"></span><span class="cue r"></span>
   </div>
-  <div class="tbtn" id="btnA">SWORD</div>
-  <div class="tbtn" id="btnB">STAR</div>
+  <div class="tbtn" id="btnJ" aria-label="jump">
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="5 15 12 8 19 15"/>
+      <polyline points="5 21 12 14 19 21" opacity=".45"/>
+    </svg>
+    <span>JUMP</span>
+  </div>
+  <div class="tbtn" id="btnA" aria-label="sword">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="19" y1="5" x2="9.5" y2="14.5"/>
+      <line x1="7" y1="12.5" x2="11.5" y2="17"/>
+      <line x1="7.5" y1="16.5" x2="5" y2="19"/>
+      <path d="M17 3 L21 7" stroke-width="2.6"/>
+    </svg>
+    <span>SWORD</span>
+  </div>
+  <div class="tbtn" id="btnB" aria-label="shuriken">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      <path d="M12 2 L14.2 9.8 L22 12 L14.2 14.2 L12 22 L9.8 14.2 L2 12 L9.8 9.8 Z"/>
+      <circle cx="12" cy="12" r="2.1" fill="#17171f"/>
+    </svg>
+    <span>STAR</span>
+  </div>
   <div class="tbtn" id="btnStart">START</div>
 </div>
 <script type="module" src="./game.js"></script>
