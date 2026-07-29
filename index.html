@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>KAGE NO MORI — ninja action</title>
+<link rel="icon" href="data:,">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;overflow:hidden}
+  body{display:flex;align-items:center;justify-content:center;
+       font-family:monospace;color:#888;user-select:none;-webkit-user-select:none}
+  #screen{image-rendering:pixelated;image-rendering:crisp-edges;background:#000}
+  #note{position:fixed;bottom:8px;left:0;right:0;text-align:center;
+        font-size:11px;letter-spacing:.15em;color:#555}
+</style>
+</head>
+<body>
+<canvas id="screen"></canvas>
+<div id="note">ARROWS MOVE · ↑ JUMP (↖/↗ DIAGONAL) · X/SPACE SWORD · Z SHURIKEN · ENTER START/PAUSE · M SOUND</div>
+<script type="module" src="./game.js"></script>
+</body>
+</html>
